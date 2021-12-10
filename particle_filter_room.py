@@ -20,7 +20,7 @@ def gasuss_noise(image, mean=0, var=0.000001):
     #cv.imshow("gasuss", out)
     return out
 
-def create_room(door, thikness = 10):
+def create_room(door, thikness = 50):
     fond = cv2.imread("fond.png")
     HEIGHT, WIDTH,_ = fond.shape
     room = cv2.line(fond, (0,0), (0,HEIGHT), (0,0,0), thikness)
@@ -46,7 +46,7 @@ print(HEIGHT, WIDTH)
 # its rotation is relative to its center with x,y <=> width, height
 def put_robot(room, pos, rot_angle, robot_radius = 25, thikness = 10):
     # lroom = cv2.cvtColor(room, cv2.COLOR_GRAY2BGR)
-    rot_angle_rad = np.radians(rot_angle)
+    # rot_angle_rad = np.radians(rot_angle)
     cv2.circle(room, pos, robot_radius, (255,0,0), -1)
     cv2.line(room, pos, (int(pos[0]+robot_radius*np.cos(rot_angle)), int(pos[1]+robot_radius*np.sin(rot_angle))),(0,0,0), thikness//2)
     # cv2.imshow("room with robot", room)
@@ -55,7 +55,7 @@ def put_robot(room, pos, rot_angle, robot_radius = 25, thikness = 10):
 
 
 
-def get_input(TURN = np.radians(5), STEP = 5):
+def get_input(TURN = np.radians(20), STEP = 5):
   fwd = 0
   turn = 0
   halt = False
@@ -131,41 +131,45 @@ def sense_all_around(room, pos, rot_angle, noisy, sensor_angle = 30, max_distanc
     return sensor
 
 
-def sense_lidar(room, pos, rot_angle, noisy, step_angle = 1, step_xy = 5, sensor_angle = 30, max_distance_sensor = 50):
-    rot_angle_rad = np.radians(rot_angle)
-    sensor_angle_rad = np.radians(sensor_angle)
+def sense_lidar(room, pos, rot_angle, noisy, nbr_angle_accuracy = 15, step_xy = 13, sensor_angle = np.radians(60), max_distance_sensor = 1000):
+
+    sensor = np.zeros((nbr_angle_accuracy,2))
 
     lroom = cv2.cvtColor(room, cv2.COLOR_BGR2GRAY)
-    
+    step_angle = sensor_angle/(nbr_angle_accuracy-1)
 
-    posx = pos[0]
-    posy = pos[1]
+    for i in range(nbr_angle_accuracy):
 
-    print(posx, posy)
+        dist = 0 
+        posx = pos[1]
+        posy = pos[0]
+        
+        if posx<lroom.shape[0]  and posy<lroom.shape[1] :
+            pix = lroom[posx, posy]
+        else :
+            pix = -1
 
-    pix = lroom[posx, posy]
-    dist = 0 
-    i = 0
+        while pix>0 and dist<max_distance_sensor and posx+step_xy<lroom.shape[0] and posy+step_xy< lroom.shape[1]:
 
-    while pix>0 and dist<max_distance_sensor and posx< lroom.shape[1] and posy< lroom.shape[0]:
-        posx += int(step_xy*np.cos(rot_angle_rad-sensor_angle_rad/2 + step_angle*i))
-        posy += int(step_xy*np.sin(rot_angle_rad-sensor_angle_rad/2 + step_angle*i))
+                posy += int(step_xy*np.cos(rot_angle-sensor_angle/2 + step_angle*i))
+                posx += int(step_xy*np.sin(rot_angle-sensor_angle/2 + step_angle*i))
 
-        dist += step_xy
+                dist += step_xy
 
-        pix = lroom[posx, posy]
+                pix = lroom[posx, posy]
+        
+        # print((step_xy*np.cos(rot_angle-sensor_angle/2 + step_angle*i)), (step_xy*np.sin(rot_angle-sensor_angle/2 + step_angle*i)))
 
-        cv2.circle(room, (int(posx), int(posy)), 5, (0,255,255), -1)
+        cv2.circle(room, (int(posy), int(posx)), 5, (0,255,255), -1)
 
-    # print(dist)
+        if pix == 0:
+            sensor[i,0] = posx
+            sensor[i,1] = posy
+        else:
+            sensor[i,0] = -1
+            sensor[i,1] = -1
 
-    
-
-    # return dist
-
-
-    
-
+    return sensor
 
 
 def init_particles(num_particles = 3000):
@@ -213,8 +217,11 @@ while not(halt):
 
     fwd, turn, halt = get_input()
     pos, rot = move(pos, rot, fwd, turn, noisy = True)
-    put_robot(lroom, pos, rot)
+    sensor = sense_lidar(lroom, pos, rot, noisy = False)
 
+    # print(sensor)
+
+    put_robot(lroom, pos, rot)
     cv2.imshow("room", lroom)
 
 
