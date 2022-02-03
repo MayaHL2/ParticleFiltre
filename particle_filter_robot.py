@@ -116,6 +116,8 @@ def compute_weights(particles, robot_sensor):
     errors[i] = abs(robot_sensor - elevation)
   weights = np.max(errors) - errors
 
+  print(np.max(weights), np.min(weights))
+
   weights[np.where(
             (particles[:,0] == 0)|
             (particles[:,0] == WIDTH-1)|
@@ -207,4 +209,4 @@ while True:
         particles = resample(particles, weights)
         particles = add_noise(particles)
 
-cv2.destroyAllWindows()
+cv2.destroyAllWindows() 
