@@ -2,10 +2,9 @@ import numpy as np
 import cv2
 
 class Particles:
-    def __init__(self, room, num_particles):
+    def __init__(self, num_particles, HEIGHT, WIDTH):
         self.num_particles = num_particles
-        self.room = room
-        self.HEIGHT, self.WIDTH,_ = self.room.shape
+        self.HEIGHT, self.WIDTH = HEIGHT, WIDTH
         self.particles = np.random.rand(num_particles, 3)
         self.particles *= np.array((self.WIDTH, self.HEIGHT, np.radians(360)))
         self.weights =  np.zeros(self.num_particles)
@@ -21,16 +20,16 @@ class Particles:
         self.particles[:, 1] = np.clip(self.particles[:, 1], 0.0, self.HEIGHT-1)
 
 
-    def put_particles(self):
+    def put_particles(self, room):
         if len(self.particles) > 0:
             for i in range(self.num_particles):
-                cv2.circle(self.room, (int(self.particles[i,0]),(int(self.particles[i,1]))),1, (255, 255, 0), 1)
+                cv2.circle(room, (int(self.particles[i,0]),(int(self.particles[i,1]))),1, (255, 255, 0), 1)
 
 
-    def get_weights(self, sensor_robot):
+    def get_weights(self, room, sensor_robot):
 
         for i in range(len(self.particles)):
-            sensor_particle= self.sense_lidar((int(self.particles[i][0]), int(self.particles[i][1])), self.particles[i][2])
+            sensor_particle = self.sense_lidar(room, (int(self.particles[i][0]), int(self.particles[i][1])), self.particles[i][2])
             weight = np.abs(sensor_robot-sensor_particle)
             self.weights[i] = np.sum(weight)
 
@@ -60,7 +59,7 @@ class Particles:
 
 
 
-    def add_noise(self, particles):
+    def add_noise(self):
         noise = np.concatenate(
             (
                 np.random.normal(0,self.SIGMA_POS, (self.num_particles, 1)),
@@ -69,13 +68,13 @@ class Particles:
             ),
             axis = 1
         )
-        particles += noise 
+        self.particles += noise 
 
-    def sense_lidar(self, pos, rot_angle, nbr_angle_accuracy = 8, step_xy = 13, sensor_angle = np.radians(360), max_distance_sensor = 300):
+    def sense_lidar(self, room, pos, rot_angle, nbr_angle_accuracy = 5, step_xy = 13, sensor_angle = np.radians(360), max_distance_sensor = 300):
 
         sensor = np.zeros((nbr_angle_accuracy,1))
 
-        lroom = cv2.cvtColor(self.room, cv2.COLOR_BGR2GRAY)
+        lroom = cv2.cvtColor(room, cv2.COLOR_BGR2GRAY)
         if not(nbr_angle_accuracy == 1):
             step_angle = sensor_angle/(nbr_angle_accuracy-1)
         else : 
@@ -109,3 +108,9 @@ class Particles:
                 sensor[i] = -1
 
         return sensor
+
+    def particles_exist(self):
+        return len(self.particles)>0
+
+    def estimation(self):
+        return np.mean(self.particles, axis = 0)
