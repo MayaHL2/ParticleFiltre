@@ -1,37 +1,22 @@
 import numpy as np 
 import cv2
 import time
+import matplotlib.pyplot as plt
 
 NUM_PARTICLES = 200
 
 def create_room(door, thikness = 50):
     room = cv2.imread("piece.png")
+
     # HEIGHT, WIDTH,_ = room.shape
-    # room = cv2.line(room, (0,0), (0,HEIGHT), (0,0,0), thikness)
-    # room = cv2.line(room, (0,0), (WIDTH,0), (0,0,0), thikness)
-    # room = cv2.line(fond, (WIDTH,HEIGHT), (0,HEIGHT), (0,0,0), thikness)
-    # room = cv2.line(room, (WIDTH,HEIGHT), (WIDTH,0), (0,0,0), thikness)
-
-    # if door:
-    #     door_1 = np.random.randint(2*thikness, HEIGHT-5*thikness)
-    #     door_2 = np.random.randint(door_1+3*thikness, HEIGHT-2*thikness)
-    #     # print(door_1, door_2, HEIGHT)
-    #     room = cv2.line(room, (WIDTH,door_1), (WIDTH,door_2), (255,255,255), thikness)
-
-    
-    # room = cv2.line(room, (WIDTH//2,HEIGHT), (WIDTH//2,0), (0,0,0), thikness//2)
-
-    # door_1 = np.random.randint(2*thikness, HEIGHT-5*thikness)
-    # door_2 = np.random.randint(door_1+3*thikness, HEIGHT-2*thikness)
-
-    # room = cv2.line(room, (WIDTH//2,door_1), (WIDTH//2,door_2), (255,255,255), thikness//2)
+    # cv2.resize(room, (HEIGHT//2, WIDTH//2))
 
     return room
 
-
 room = create_room(door = True)
 HEIGHT, WIDTH,_ = room.shape
-print(HEIGHT, WIDTH)
+
+
 # The position of the robot is relative to the room
 # its rotation is relative to its center with x,y <=> width, height
 def put_robot(room, pos, rot_angle, robot_radius = 25, thikness = 10, robot_color = (255,0,0)):
@@ -84,10 +69,10 @@ def move(room, pos, rot_angle, fwd, turn, noisy = True, STD_STEP = 2, STD_TURN =
   return (pos0, pos1), rot_angle
 
 # Senses the position of the robot like a lidar 
-def sense_lidar(room, pos, rot_angle, robot, nbr_angle_accuracy = 15, step_xy = 13, sensor_angle = np.radians(90), max_distance_sensor = 300):
+def sense_lidar(room, pos, rot_angle, robot, nbr_angle_accuracy = 8, step_xy = 13, sensor_angle = np.radians(360), max_distance_sensor = 300):
 
     start = time.time()
-    sensor = np.zeros((nbr_angle_accuracy,2))
+    sensor = np.zeros((nbr_angle_accuracy,1))
 
     lroom = cv2.cvtColor(room, cv2.COLOR_BGR2GRAY)
     if not(nbr_angle_accuracy == 1):
@@ -120,14 +105,13 @@ def sense_lidar(room, pos, rot_angle, robot, nbr_angle_accuracy = 15, step_xy = 
 
         
         if pix == 0 :
-            sensor[i,0] = posx
-            sensor[i,1] = posy
+            sensor[i] = np.sqrt(posx**2 + posy**2)
+            
 
             if robot:
                 cv2.circle(room, (int(posy), int(posx)), 5, (255,0,255), -1)
         else:
-            sensor[i,0] = -1
-            sensor[i,1] = -1
+            sensor[i] = -1
             if robot:
                 cv2.circle(room, (int(posy), int(posx)), 5, (0,255,255), -1)
 
@@ -158,16 +142,12 @@ def put_particles(room, particles, num_particles = NUM_PARTICLES):
 
 def get_weights(room, sensor_robot, particles):
 
-    weights = np.zeros((2,len(particles)))
+    weights = np.zeros(len(particles))
 
     for i in range(len(particles)):
         sensor_particle, timing = sense_lidar(room, (int(particles[i][0]), int(particles[i][1])), particles[i][2], robot = False)
-        # print(sensor_robot.shape, sensor_particle.shape)
-        weight = (sensor_robot-sensor_particle)**2
-        weights[0,i] = np.sum(weight, axis=1)[0]
-        weights[1,i] = np.sum(weight, axis=1)[1]
-
-    weights = np.sum(weights, axis = 0)
+        weight = np.abs(sensor_robot-sensor_particle)
+        weights[i] = np.sum(weight)
 
     weights = (np.max(weights) - weights)
 
@@ -215,6 +195,7 @@ halt = False
 pos = (3*WIDTH//4, 4*HEIGHT//5)
 rot = 180
 fwd, turn = 0, 0
+error_pos = list()
 
 particles = init_particles(num_particles= NUM_PARTICLES)
 
@@ -225,22 +206,25 @@ while not(halt):
     fwd, turn, halt = get_input()
     pos, rot = move(lroom, pos, rot, fwd, turn, noisy = True)
     sensor, timing = sense_lidar(lroom, pos, rot, robot = True)
-    print(sensor)
 
-    # print(timing)
-    # put_particles(lroom, particles, num_particles = NUM_PARTICLES)
-    # move_particles(particles, fwd, turn)
+    put_particles(lroom, particles, num_particles = NUM_PARTICLES)
+    move_particles(particles, fwd, turn)
 
-    # weights, timing = get_weights(lroom, sensor, particles)
-    # particles = resample(particles, weights)
-    # particles = add_noise(particles)
+    weights, timing = get_weights(lroom, sensor, particles)
+    particles = resample(particles, weights)
+    particles = add_noise(particles)
 
-    # if len(particles>0):
-    #     particle_mean = np.mean(particles, axis = 0)
-    #     cv2.circle(lroom, (int(particle_mean[0]), int(particle_mean[1])), 8, (0, 0, 255), -1)
+    if len(particles>0):
+        particle_mean = np.mean(particles, axis = 0)
+        cv2.circle(lroom, (int(particle_mean[0]), int(particle_mean[1])), 8, (0, 0, 255), -1)
 
     put_robot(lroom, pos, rot)
     cv2.imshow("room", lroom)
+
+    error_pos.append(np.abs(pos - np.array([int(particle_mean[0]), int(particle_mean[1])])))
+
+plt.plot(error_pos)
+plt.show()
 
 
 cv2.waitKey(0)
