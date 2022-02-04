@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from robot import *
 from particles import *
 
-NUM_PARTICLES = 100
+NUM_PARTICLES = 300
 
 room = room = cv2.imread("room.png")
 HEIGHT, WIDTH,_ = room.shape
