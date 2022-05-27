@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from robot import *
 from particles import *
 
-NUM_PARTICLES = 300
+NUM_PARTICLES = 800
 
 room = room = cv2.imread("room.png")
 HEIGHT, WIDTH,_ = room.shape
@@ -44,6 +44,7 @@ while not(halt):
     lroom = np.array(room)
 
     fwd, turn, halt = get_input()
+
     robot_.move(lroom, fwd, turn, noisy = True)
 
     sensor = robot_.sense_lidar(lroom)
@@ -55,16 +56,19 @@ while not(halt):
     particles_.resample()
     particles_.add_noise()
 
+    lroom = robot_.put_robot(lroom)
+
     if particles_.particles_exist:
         particle_mean = particles_.estimation()
         cv2.circle(lroom, (int(particle_mean[0]), int(particle_mean[1])), 8, (0, 0, 255), -1)
 
-    lroom = robot_.put_robot(lroom)
+    
     cv2.imshow("room", lroom)
 
     error_pos.append(np.abs(robot_.pos - np.array([int(particle_mean[0]), int(particle_mean[1])])))
-
+    
 plt.plot(error_pos)
+plt.grid()
 plt.show()
 
 

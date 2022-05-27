@@ -1,5 +1,6 @@
 import numpy as np 
 import cv2
+from constant import *
 
 class Robot:
   def __init__(self, pos, rot_angle):
@@ -41,7 +42,7 @@ class Robot:
     self.pos = (pos0, pos1)
 
   # Senses the position of the robot like a lidar 
-  def sense_lidar(self, room, nbr_angle_accuracy = 5, step_xy = 13, sensor_angle = np.radians(360), max_distance_sensor = 300):
+  def sense_lidar(self, room, nbr_angle_accuracy = NBR_ANGLE_ACCURACY, step_xy = 13, sensor_angle = np.radians(SENSOR_ANGLE), max_distance_sensor = 300):
 
     sensor = np.zeros((nbr_angle_accuracy,1))
 

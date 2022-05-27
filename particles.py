@@ -1,5 +1,6 @@
 import numpy as np 
 import cv2
+from constant import *
 
 class Particles:
     def __init__(self, num_particles, HEIGHT, WIDTH):
@@ -33,7 +34,8 @@ class Particles:
             weight = np.abs(sensor_robot-sensor_particle)
             self.weights[i] = np.sum(weight)
 
-        self.weights = (np.max(self.weights) - self.weights)
+        self.weights = (NBR_ANGLE_ACCURACY*max(self.WIDTH//15, self.HEIGHT//15) - self.weights)
+        # self.wieghts = (np.max(self.weights)- self.weights)
 
         self.weights[np.where(
                 (self.particles[:,0] == 0)|
@@ -42,7 +44,7 @@ class Particles:
                 (self.particles[:,1] == self.HEIGHT-1)
             )[0]
             ] = 0.0
-        
+        self.weights[np.where(self.weights <0)] = 0.0
         self.weights = self.weights**3
 
 
@@ -57,6 +59,11 @@ class Particles:
 
         self.particles = self.particles[new_index, :]
 
+        # self.particles[np.where(self.weights == 0)]  = [0,0,0]
+
+        # hey = self.particles[np.where(self.weights == 0)] 
+
+
 
 
     def add_noise(self):
@@ -70,7 +77,7 @@ class Particles:
         )
         self.particles += noise 
 
-    def sense_lidar(self, room, pos, rot_angle, nbr_angle_accuracy = 5, step_xy = 13, sensor_angle = np.radians(360), max_distance_sensor = 300):
+    def sense_lidar(self, room, pos, rot_angle, nbr_angle_accuracy = NBR_ANGLE_ACCURACY, step_xy = 13, sensor_angle = np.radians(SENSOR_ANGLE), max_distance_sensor = 300):
 
         sensor = np.zeros((nbr_angle_accuracy,1))
 
@@ -114,3 +121,6 @@ class Particles:
 
     def estimation(self):
         return np.mean(self.particles, axis = 0)
+
+    def number_particles(self):
+        return len(self.particles)
